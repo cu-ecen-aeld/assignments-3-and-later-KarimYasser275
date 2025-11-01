@@ -16,8 +16,14 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
-
-    return true;
+    pid_t ret = system(cmd);
+    if(ret == 0)
+    {
+        return true;
+    }else{
+        perror("System");
+        return false;
+    }
 }
 
 /**
@@ -47,7 +53,7 @@ bool do_exec(int count, ...)
     command[count] = NULL;
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
-    command[count] = command[count];
+    // command[count] = command[count];
 
 /*
  * TODO:
@@ -58,10 +64,43 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    pid_t ret = fork();
+    if(ret == 0)
+    {
+        pid_t exec_ret = execv(command[0], &command[0]);
+        if (exec_ret == -1){
+            perror("Execv");
+            exit(127);
+        }
+    }
+    else if (ret == -1)
+    {
+        perror("Fork");
+        return false;
+    }
+    else{
+        int status;
+        pid_t wait_ret = wait(&status);
+        if(wait_ret == -1)
+        {
+            perror("Wait");
+            return false;
+        }
+        va_end(args);
+        if(WIFEXITED(status))
+        {
+            if(!WEXITSTATUS(status))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
 
-    va_end(args);
-
-    return true;
+        }
+    }
+    return true; 
 }
 
 /**
@@ -82,9 +121,14 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     command[count] = NULL;
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
-    command[count] = command[count];
+    // command[count] = command[count];
 
 
+    printf("[DEBUG]: ");
+    for (int i = 0; i < count; i++) {
+        printf("%s ", command[i]);
+    }
+    printf("> %s\n", outputfile);
 /*
  * TODO
  *   Call execv, but first using https://stackoverflow.com/a/13784315/1446624 as a refernce,
@@ -92,8 +136,57 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    int fd = open(outputfile, O_CREAT | O_WRONLY | O_TRUNC , 0644);
 
-    va_end(args);
+    if(fd == -1)
+    {
+        perror("Open");
+        return false;
+    }
 
-    return true;
+    pid_t pid = fork();
+    if(!pid)
+    {
+        if (dup2(fd, STDOUT_FILENO) == -1) {
+            perror("dup2 stderr");
+            _exit(127);
+        }
+        pid_t exec_ret = execv(command[0], &command[0]);
+        if(exec_ret == -1)
+        {
+            perror("Execv");
+            exit(127);       
+        }
+    }
+    else if (pid == -1)
+    {
+        perror("Fork");
+        (void)close(fd);
+        return false;
+    }
+    else
+    {
+        (void)close(fd);
+        int status;
+        pid_t wait_ret = wait(&status);
+        if(wait_ret == -1)
+        {
+            perror("Wait");
+            return false;
+        }
+        va_end(args);
+        if(WIFEXITED(status))
+        {
+            if(!WEXITSTATUS(status))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+
+        }
+    }
+    return true; 
 }
