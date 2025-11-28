@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Author : Karim Yasser
 # Date : 25/10/2025
 # Assignment 1
