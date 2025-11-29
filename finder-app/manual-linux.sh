@@ -127,7 +127,6 @@ sudo cp ${TOOLCHAIN_LIBC}/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
 
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
-sudo cp ${FINDER_APP_DIR}/writer ${OUTDIR}/rootfs/home/
 sudo cp ${FINDER_APP_DIR}/finder.sh ${OUTDIR}/rootfs/home/
 sudo cp ${FINDER_APP_DIR}/finder-test.sh ${OUTDIR}/rootfs/home/
 sudo cp -r ${FINDER_APP_DIR}/conf/ ${OUTDIR}/rootfs/home/
