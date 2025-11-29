@@ -127,22 +127,26 @@ sudo cp ${TOOLCHAIN_LIBC}/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
 
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
+echo "Copying finder related scripts and executables to the /home directory"
 sudo cp ${FINDER_APP_DIR}/finder.sh ${OUTDIR}/rootfs/home/
 sudo cp ${FINDER_APP_DIR}/finder-test.sh ${OUTDIR}/rootfs/home/
 sudo cp -r ${FINDER_APP_DIR}/conf/ ${OUTDIR}/rootfs/home/
 sudo cp ${FINDER_APP_DIR}/autorun-qemu.sh ${OUTDIR}/rootfs/home/
 
 # TODO: Make device nodes
+echo "Making device nodes"
 sudo mknod ${OUTDIR}/rootfs/dev/null c 1 3
 sudo mknod ${OUTDIR}/rootfs/dev/tty c 5 1
 
 # TODO: Clean and build the writer utility
 cd "${FINDER_APP_DIR}"
+echo "Cleaning the writer utility"
 make clean
+echo "Building the writer utility"
 make CROSS_COMPILE=${CROSS_COMPILE}
-echo | file "${FINDER_APP_DIR}/writer"
 
 # TODO: Create initramfs.cpio.gz
+echo "Creating initramfs.cpio.gz"
 cd "${OUTDIR}/rootfs"
 find . | cpio -H newc -ov --owner root:root > ${OUTDIR}/initramfs.cpio
 gzip ${OUTDIR}/initramfs.cpio
@@ -172,6 +176,7 @@ fi
 echo "Adding the Image in outdir"
 # Copying image to output directory
 cp ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ${OUTDIR}
+echo "Image added to outdir"
 
 # TODO: Chown the root directory
 
