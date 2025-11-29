@@ -13,6 +13,12 @@ BUSYBOX_REPO=git://busybox.net/busybox.git
 FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
 CROSS_COMPILE="aarch64-none-linux-gnu-"
+TOOLCHAIN_VERSION="13.3.rel1"
+TOOLCHAIN_NAME="arm-gnu-toolchain-${TOOLCHAIN_VERSION}-x86_64-aarch64-none-linux-gnu"
+TOOLCHAIN_ARCHIVE="${TOOLCHAIN_NAME}.tar.xz"
+TOOLCHAIN_URL="https://developer.arm.com/-/media/Files/downloads/gnu/${TOOLCHAIN_VERSION}/binrel/${TOOLCHAIN_ARCHIVE}"
+
+echo "Starting the script"
 
 if [ $# -lt 1 ]
 then
@@ -24,6 +30,42 @@ fi
 
 mkdir -p ${OUTDIR}
 
+# Download and extract toolchain if not already present
+cd "$OUTDIR"
+TOOLCHAIN_BASE="${OUTDIR}/${TOOLCHAIN_NAME}"
+if [ ! -d "${TOOLCHAIN_BASE}" ]; then
+    echo "Downloading Arm GNU Toolchain..."
+    if [ ! -f "${OUTDIR}/${TOOLCHAIN_ARCHIVE}" ]; then
+        wget -q --show-progress "${TOOLCHAIN_URL}" -O "${OUTDIR}/${TOOLCHAIN_ARCHIVE}"
+        if [ $? -ne 0 ]; then
+            echo "Error: Failed to download toolchain"
+            exit 1
+        fi
+    else
+        echo "Toolchain archive already exists, skipping download"
+    fi
+    
+    echo "Extracting Arm GNU Toolchain..."
+    tar -xf "${OUTDIR}/${TOOLCHAIN_ARCHIVE}" -C "${OUTDIR}"
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to extract toolchain"
+        exit 1
+    fi
+else
+    echo "Toolchain already extracted at ${TOOLCHAIN_BASE}"
+fi
+
+# Add toolchain to PATH
+TOOLCHAIN_BIN="${TOOLCHAIN_BASE}/bin"
+if [ -d "$TOOLCHAIN_BIN" ] && [ -x "$TOOLCHAIN_BIN/${CROSS_COMPILE}gcc" ]; then
+    export PATH="$TOOLCHAIN_BIN:$PATH"
+    echo "Using toolchain at: ${TOOLCHAIN_BASE}"
+    ${CROSS_COMPILE}gcc --version
+else
+    echo "Error: Toolchain not found at $TOOLCHAIN_BIN or ${CROSS_COMPILE}gcc not executable"
+    exit 1
+fi
+echo $PATH
 
 echo "Creating the staging directory for the root filesystem"
 cd "$OUTDIR"
@@ -62,7 +104,7 @@ fi
     sudo make distclean
     sudo make defconfig 
 
-    sudo make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} CONFIG_PREFIX=${OUTDIR}/rootfs install 
+    sudo make ARCH=${ARCH} CROSS_COMPILE=$TOOLCHAIN_BIN/${CROSS_COMPILE} CONFIG_PREFIX=${OUTDIR}/rootfs install 
     echo "[DEBUG] 3"
 
 echo "Library dependencies"
@@ -72,14 +114,20 @@ ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
 # TODO: Add library dependencies to rootfs
 
-cp /home/karim/x-tools/arm-gnu-toolchain-13.3.rel1-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib
-cp /home/karim/x-tools/arm-gnu-toolchain-13.3.rel1-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64
-cp /home/karim/x-tools/arm-gnu-toolchain-13.3.rel1-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64
-cp /home/karim/x-tools/arm-gnu-toolchain-13.3.rel1-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
+TOOLCHAIN_LIBC="${TOOLCHAIN_BASE}/aarch64-none-linux-gnu/libc"
+if [ ! -d "$TOOLCHAIN_LIBC" ]; then
+    echo "Error: Toolchain libc directory not found at $TOOLCHAIN_LIBC"
+    exit 1
+fi
+
+sudo cp ${TOOLCHAIN_LIBC}/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib
+sudo cp ${TOOLCHAIN_LIBC}/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64
+sudo cp ${TOOLCHAIN_LIBC}/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64
+sudo cp ${TOOLCHAIN_LIBC}/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
 
 # TODO: Make device nodes
-mknod ${OUTDIR}/rootfs/dev/null c 1 3
-mknod ${OUTDIR}/rootfs/dev/tty c 5 1
+sudo mknod ${OUTDIR}/rootfs/dev/null c 1 3
+sudo mknod ${OUTDIR}/rootfs/dev/tty c 5 1
 # TODO: Clean and build the writer utility
 cd "${FINDER_APP_DIR}"
 make clean
@@ -88,11 +136,11 @@ echo | file "${FINDER_APP_DIR}/writer"
 
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
-cp ${FINDER_APP_DIR}/writer ${OUTDIR}/rootfs/home/
-cp ${FINDER_APP_DIR}/finder.sh ${OUTDIR}/rootfs/home/
-cp ${FINDER_APP_DIR}/finder-test.sh ${OUTDIR}/rootfs/home/
-cp -r ${FINDER_APP_DIR}/conf/ ${OUTDIR}/rootfs/home/
-cp ${FINDER_APP_DIR}/autorun-qemu.sh ${OUTDIR}/rootfs/home/
+sudo cp ${FINDER_APP_DIR}/writer ${OUTDIR}/rootfs/home/
+sudo cp ${FINDER_APP_DIR}/finder.sh ${OUTDIR}/rootfs/home/
+sudo cp ${FINDER_APP_DIR}/finder-test.sh ${OUTDIR}/rootfs/home/
+sudo cp -r ${FINDER_APP_DIR}/conf/ ${OUTDIR}/rootfs/home/
+sudo cp ${FINDER_APP_DIR}/autorun-qemu.sh ${OUTDIR}/rootfs/home/
 
 cd "$OUTDIR"
 if [ ! -d "${OUTDIR}/linux-stable" ]; then
