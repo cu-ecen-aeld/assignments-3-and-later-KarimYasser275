@@ -125,15 +125,6 @@ sudo cp ${TOOLCHAIN_LIBC}/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64
 sudo cp ${TOOLCHAIN_LIBC}/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64
 sudo cp ${TOOLCHAIN_LIBC}/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
 
-# TODO: Make device nodes
-sudo mknod ${OUTDIR}/rootfs/dev/null c 1 3
-sudo mknod ${OUTDIR}/rootfs/dev/tty c 5 1
-# TODO: Clean and build the writer utility
-cd "${FINDER_APP_DIR}"
-make clean
-make CROSS_COMPILE=${CROSS_COMPILE}
-echo | file "${FINDER_APP_DIR}/writer"
-
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
 sudo cp ${FINDER_APP_DIR}/writer ${OUTDIR}/rootfs/home/
@@ -141,6 +132,21 @@ sudo cp ${FINDER_APP_DIR}/finder.sh ${OUTDIR}/rootfs/home/
 sudo cp ${FINDER_APP_DIR}/finder-test.sh ${OUTDIR}/rootfs/home/
 sudo cp -r ${FINDER_APP_DIR}/conf/ ${OUTDIR}/rootfs/home/
 sudo cp ${FINDER_APP_DIR}/autorun-qemu.sh ${OUTDIR}/rootfs/home/
+
+# TODO: Make device nodes
+sudo mknod ${OUTDIR}/rootfs/dev/null c 1 3
+sudo mknod ${OUTDIR}/rootfs/dev/tty c 5 1
+
+# TODO: Clean and build the writer utility
+cd "${FINDER_APP_DIR}"
+make clean
+make CROSS_COMPILE=${CROSS_COMPILE}
+echo | file "${FINDER_APP_DIR}/writer"
+
+# TODO: Create initramfs.cpio.gz
+cd "${OUTDIR}/rootfs"
+find . | cpio -H newc -ov --owner root:root > ${OUTDIR}/initramfs.cpio
+gzip ${OUTDIR}/initramfs.cpio
 
 cd "$OUTDIR"
 if [ ! -d "${OUTDIR}/linux-stable" ]; then
@@ -170,8 +176,5 @@ cp ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ${OUTDIR}
 
 # TODO: Chown the root directory
 
-# TODO: Create initramfs.cpio.gz
-cd "${OUTDIR}/rootfs"
-find . | cpio -H newc -ov --owner root:root > ${OUTDIR}/initramfs.cpio
-gzip ${OUTDIR}/initramfs.cpio
+
 
