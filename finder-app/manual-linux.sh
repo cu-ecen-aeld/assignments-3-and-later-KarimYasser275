@@ -144,6 +144,8 @@ echo "Cleaning the writer utility"
 make clean
 echo "Building the writer utility"
 make CROSS_COMPILE=${CROSS_COMPILE}
+sudo cp ${FINDER_APP_DIR}/writer ${OUTDIR}/rootfs/home/
+echo "Writer utility copied to /home directory"
 
 # TODO: Create initramfs.cpio.gz
 echo "Creating initramfs.cpio.gz"
