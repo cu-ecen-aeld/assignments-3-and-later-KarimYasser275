@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 
 // Optional: use these functions to add debug or error prints to your application
 #define DEBUG_LOG(msg,...)
@@ -14,6 +15,32 @@ void* threadfunc(void* thread_param)
     // TODO: wait, obtain mutex, wait, release mutex as described by thread_data structure
     // hint: use a cast like the one below to obtain thread arguments from your parameter
     //struct thread_data* thread_func_args = (struct thread_data *) thread_param;
+    thread_data_t* t_data = (thread_data_t*) thread_param;
+    int rc = 0;
+    while (t_data->wait_to_obtain_ms > 0)
+    {
+        /* code */
+        t_data->wait_to_obtain_ms--;
+    }
+    rc = pthread_mutex_lock(t_data->mutex);
+    if(!rc)
+    {
+        errno = rc;
+        perror("pthread_mutex_lock");
+    }
+
+    while (t_data->wait_to_release_ms > 0)
+    {
+        /* code */
+        t_data->wait_to_release_ms--;
+    }
+    rc = pthread_mutex_unlock(t_data->mutex);
+    if(!rc)
+    {
+        errno = rc;
+        perror("pthread_mutex_unlock");
+    }
+    
     return thread_param;
 }
 
@@ -28,6 +55,25 @@ bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex,int 
      *
      * See implementation details in threading.h file comment block
      */
+    /*Allocate memory for thread data*/
+    thread_data_t* t_data = malloc(sizeof(thread_data_t));
+    t_data->mutex = mutex;
+    t_data->wait_to_obtain_ms = wait_to_obtain_ms;
+    t_data->wait_to_release_ms = wait_to_release_ms;
+    t_data->thread_complete_success = false;
+
+    int rc = pthread_create(thread, NULL, threadfunc, t_data);
+    if(rc == 0)
+    {
+        t_data->thread_complete_success = true;
+        return true;
+    }
+    else
+    {
+        errno = rc;
+        perror("pthread_create");
+    }
+    
     return false;
 }
 
