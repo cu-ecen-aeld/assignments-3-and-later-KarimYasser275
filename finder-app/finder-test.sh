@@ -5,6 +5,9 @@
 set -e
 set -u
 
+# redirect all stdout and stderr to result file (overwrites each run)
+exec > /tmp/assignment4-result.txt 2>&1
+
 NUMFILES=10
 WRITESTR=AELD_IS_FUN
 WRITEDIR=/tmp/aeld-data
