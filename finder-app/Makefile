@@ -1,4 +1,3 @@
-# Use CC provided by Buildroot, default to gcc if not set
 CC ?= gcc
 CFLAGS ?= -Wall -Werror
 
