@@ -4,9 +4,9 @@ CFLAGS ?= -Wall -Werror
 all: writer
 
 writer: writer.c
-    $(CC) $(CFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) -o $@ $<
 
 clean:
-    rm -f writer *.o *.elf *.map
+	rm -f writer *.o *.elf *.map
 
 .PHONY: all clean
