@@ -1,0 +1,16 @@
+Using default value AELD_IS_FUN for string to write
+Using default value 10 for number of files to write
+Writing 10 files containing string AELD_IS_FUN to /tmp/aeld-data
+/tmp/aeld-data created
+Running writer for file /tmp/aeld-data/KarimYasser2751.txt
+Running writer for file /tmp/aeld-data/KarimYasser2752.txt
+Running writer for file /tmp/aeld-data/KarimYasser2753.txt
+Running writer for file /tmp/aeld-data/KarimYasser2754.txt
+Running writer for file /tmp/aeld-data/KarimYasser2755.txt
+Running writer for file /tmp/aeld-data/KarimYasser2756.txt
+Running writer for file /tmp/aeld-data/KarimYasser2757.txt
+Running writer for file /tmp/aeld-data/KarimYasser2758.txt
+Running writer for file /tmp/aeld-data/KarimYasser2759.txt
+Running writer for file /tmp/aeld-data/KarimYasser27510.txt
+The number of files are 10 and the number of matching lines are 10
+success
