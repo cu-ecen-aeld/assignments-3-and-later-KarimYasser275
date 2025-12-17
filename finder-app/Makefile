@@ -1,10 +1,13 @@
-CROSS_COMPILE?=
-cc=$(CROSS_COMPILE)gcc
+# Use CC provided by Buildroot, default to gcc if not set
+CC ?= gcc
+CFLAGS ?= -Wall -Werror
 
-default : writer.c
-	${cc} writer.c -o writer
+all: writer
+
+writer: writer.c
+    $(CC) $(CFLAGS) -o $@ $<
 
 clean:
-	rm -f writer *.o *.elf *.map
+    rm -f writer *.o *.elf *.map
 
-.PHONY: clean
+.PHONY: all clean
