@@ -94,7 +94,8 @@ int main(int argc, char *argv[])
                 {
                     DEBUG_MSG("Socket created successfully","");
                 }
-
+                int yes = 1;
+                setsockopt(socketfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
                 int getaddr_ret = getaddrinfo(NULL, AESD_PORT, &hints, &address);
                 if (getaddr_ret == -1)
                 {
@@ -114,15 +115,6 @@ int main(int argc, char *argv[])
                 if (bind_ret == -1)
                 {
                     perror("bind");
-                    if(errno == 98)
-                    {
-                        printf("Closing open socket file descriptor");
-                        close(socketfd);
-                        break;
-                    }
-                    else{
-                        return -1;
-                    }
                 }
                 else
                 {
@@ -233,7 +225,6 @@ int main(int argc, char *argv[])
                 {
                     /*end of file reached*/
                     DEBUG_MSG("End of file reached","");
-                    close(acceptfd);
                     g_state = ACCEPT;
                     break;
                 }
@@ -256,7 +247,6 @@ int main(int argc, char *argv[])
                             return -1;
                         }
                     }
-                    close(acceptfd);
                     g_state = ACCEPT;
                     /*Connection Closed*/
                     syslog(LOG_INFO, "Closed connection from %s", ipstr);
