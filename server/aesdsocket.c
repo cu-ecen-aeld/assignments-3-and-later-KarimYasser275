@@ -31,9 +31,9 @@ typedef enum server_state
 bool deamon_flag = false;
 char rx_buff[1024];
 struct addrinfo *address;
-char* packet = NULL;
+char *packet, *tx_buff = NULL;
 uint16_t len = 0u;
-int socketfd;
+int socketfd ,fd , acceptfd;
 static server_state_t g_state = SOCKET_CREATE;
 
 static void gracefull_exit(int signo);
@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
             case ACCEPT:
                 /*Accept connections*/
 
-                int acceptfd = accept(socketfd, address->ai_addr, &(address->ai_addrlen));
+                acceptfd = accept(socketfd, address->ai_addr, &(address->ai_addrlen));
                 if(acceptfd == -1)
                 {
                     perror("Accept");
@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
                     syslog(LOG_INFO, "Accepted connection from %s", ipstr);
                 }
 
-                int fd = open("/var/tmp/aesdsocketdata",O_RDWR | O_CREAT | O_APPEND, 0644);
+                fd = open("/var/tmp/aesdsocketdata",O_RDWR | O_CREAT | O_APPEND, 0644);
                 packet = NULL;
                 len = 0u;
 
@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
                 }
 
                 size_t size = st.st_size;
-                char *tx_buff = malloc(size);
+                tx_buff = malloc(size);
                 fd = open("/var/tmp/aesdsocketdata",O_RDWR | O_CREAT | O_APPEND, 0644);
                 int read_ret = read(fd , tx_buff , size);
 
@@ -276,6 +276,9 @@ int main(int argc, char *argv[])
 static void gracefull_exit(int signo)
 {
     close(socketfd);
+    close(fd);
+    close(acceptfd);
+    free(packet);
     freeaddrinfo(address);
     printf("\ngracefull exit in progress, signo: %d\n", signo);
     syslog(LOG_INFO, "Caught signal, exiting");
