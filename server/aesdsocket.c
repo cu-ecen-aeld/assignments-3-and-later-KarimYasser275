@@ -233,6 +233,7 @@ int main(int argc, char *argv[])
                 {
                     /*end of file reached*/
                     DEBUG_MSG("End of file reached","");
+                    close(acceptfd);
                     g_state = ACCEPT;
                     break;
                 }
@@ -255,6 +256,7 @@ int main(int argc, char *argv[])
                             return -1;
                         }
                     }
+                    close(acceptfd);
                     g_state = ACCEPT;
                     /*Connection Closed*/
                     syslog(LOG_INFO, "Closed connection from %s", ipstr);
