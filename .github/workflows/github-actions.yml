@@ -23,4 +23,5 @@ jobs:
           - name: Checkout submodules
             run : git submodule update --init --recursive
           - name: Run full test
+            run: ulimit -n 4096
             run: ./full-test.sh
