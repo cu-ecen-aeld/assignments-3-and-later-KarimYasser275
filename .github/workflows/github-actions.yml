@@ -21,7 +21,9 @@ jobs:
         steps:
           - uses: actions/checkout@v2
           - name: Checkout submodules
-            run : git submodule update --init --recursive
-          - name: Run full test
-            run: ulimit -n 4096
-            run: ./full-test.sh
+            run: git submodule update --init --recursive
+          - name: Run full test with increased limits
+            run: |
+              ulimit -n 4096
+              ulimit -s unlimited || true
+              ./full-test.sh
