@@ -1,7 +1,6 @@
 #!/bin/sh
 set -eu
-#aesdsocket=/usr/bin/aesdsocket
-aesdsocket=aesdsocket
+aesdsocket=/usr/bin/aesdsocket
 usage(){
     echo "Usage: $0 start|stop"
 }
