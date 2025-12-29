@@ -1,0 +1,32 @@
+#!/bin/sh
+set -eu
+#aesdsocket=/usr/bin/aesdsocket
+aesdsocket=aesdsocket
+usage(){
+    echo "Usage: $0 start|stop"
+}
+echo "Running aesdsocket-start-stop"
+
+if [ "$#" -ne 1 ]; then
+    usage
+    exit 1
+fi
+
+mode=$1
+
+echo "Mode: $mode"
+
+if [ "$mode" != "stop" ] && [ "$mode" != "start" ]; then
+    usage
+    exit 1
+fi
+
+if [ "$mode" = "start" ]; then
+    echo "Starting daemon"
+    ./"${aesdsocket}" -d
+else
+    echo "Stopping daemon"
+    pid=$(ps aux | grep "aesdsocket -d" | awk '{print $2}')
+    kill -TERM $pid
+fi
+exit 0
