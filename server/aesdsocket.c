@@ -191,7 +191,6 @@ int main(int argc, char *argv[])
                 new_node->next = head;
                 new_node->thread_completed = false;
                 head = new_node;
-                head->t;
                 head->acceptfd = acceptfd;
                 head->fd = fd;
                 head->state = RECEIVE;
