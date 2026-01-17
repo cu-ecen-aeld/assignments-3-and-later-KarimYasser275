@@ -54,7 +54,6 @@ static void* thread_timeStamp(void* arg);
 bool deamon_flag = false;
 char rx_buff[1024];
 struct addrinfo *address;
-char *tx_buff = NULL;
 // uint16_t len = 0u;
 int socketfd ,fd , acceptfd;
 static server_state_t g_state = SOCKET_CREATE;
@@ -83,7 +82,7 @@ int main(int argc, char *argv[])
         {
             case 'd':
                 deamon_flag = true;
-                DEBUG_MSG("Deamon mode active","");
+                // DEBUG_MSG("Deamon mode active","");
                 break;
             default:
                 deamon_flag = false;
@@ -115,7 +114,7 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                    DEBUG_MSG("Socket created successfully","");
+                    // DEBUG_MSG("Socket created successfully","");
                 }
                 int yes = 1;
                 setsockopt(socketfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
@@ -127,7 +126,7 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                    DEBUG_MSG("Socket opened successfully","");
+                    // DEBUG_MSG("Socket opened successfully","");
                 }
                 g_state = SOCKET_BIND;
 
@@ -141,7 +140,7 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                    DEBUG_MSG("Socket bound successfully","");
+                    // DEBUG_MSG("Socket bound successfully","");
                 }
                 g_state = LISTEN;
                 break;
@@ -155,7 +154,7 @@ int main(int argc, char *argv[])
                     return -1;
                 }
                 else{
-                    DEBUG_MSG("Listening","");
+                    // DEBUG_MSG("Listening","");
                 }
 
                 g_state = ACCEPT;
@@ -172,12 +171,13 @@ int main(int argc, char *argv[])
                 }
                 else{
                     void *in_addr;
-                    if (((struct sockaddr *)&address)->sa_family == AF_INET) {
-                        in_addr = &(((struct sockaddr_in *)&address)->sin_addr);
+                    if (((struct sockaddr *)address->ai_addr)->sa_family == AF_INET) {
+                        in_addr = &(((struct sockaddr_in *)address->ai_addr)->sin_addr);
                     } else {
-                        in_addr = &(((struct sockaddr_in6 *)&address)->sin6_addr);
+                        in_addr = &(((struct sockaddr_in6 *)address->ai_addr)->sin6_addr);
                     }
-                    inet_ntop(address->ai_family, in_addr, ipstr, sizeof ipstr);
+                    int family = ((struct sockaddr *)address->ai_addr)->sa_family;
+                    inet_ntop(family, in_addr, ipstr, sizeof ipstr);
                     printf("Accepting connection to %s port %s\n", ipstr , AESD_PORT);
                     syslog(LOG_INFO, "Accepted connection from %s", ipstr);
                 }
@@ -211,6 +211,8 @@ int main(int argc, char *argv[])
                     free(prev);
                     break;
                 }
+                pthread_mutex_unlock(&ll_mutex);
+                
                 while(it != NULL)
                 {
                     if(it->thread_completed == true)
@@ -258,6 +260,7 @@ static void* thread_ReceiveSend(void* arg)
 {
     Node_t* thread = (Node_t*) arg;
     char *packet = NULL;
+    char *tx_buff = NULL;
     uint16_t len = 0u;
 
     while(1)
@@ -272,11 +275,16 @@ static void* thread_ReceiveSend(void* arg)
                 {
                     /*Rx error*/
                     perror("Rx");
-                    return 0;
+                    free(packet);
+                    thread->thread_completed = true;
+                    return NULL;
                 }
                 else if (rx_ret == 0)
                 {
-                    // break;
+                    /*Connection closed*/
+                    free(packet);
+                    thread->thread_completed = true;
+                    return NULL;
                 }
                 else
                 {
@@ -295,6 +303,7 @@ static void* thread_ReceiveSend(void* arg)
                         (void)pthread_mutex_unlock(&thread_mutex);
                         if(wr_ret == -1)
                         {
+                            free(packet);
                             thread->thread_completed = true;
                             return NULL;
                         }
@@ -320,18 +329,26 @@ static void* thread_ReceiveSend(void* arg)
 
                 size_t size = st.st_size;
                 tx_buff = malloc(size);
+                if (tx_buff == NULL) {
+                    perror("malloc");
+                    close(thread->fd);
+                    thread->thread_completed = true;
+                    return NULL;
+                }
                 thread->fd = open("/var/tmp/aesdsocketdata",O_RDWR | O_CREAT | O_APPEND, 0644);
                 int read_ret = read(thread->fd , tx_buff , size);
 
                 if(read_ret == 0)
                 {
                     /*end of file reached*/
-                    DEBUG_MSG("End of file reached","");
+                    // DEBUG_MSG("End of file reached","");
+                    free(tx_buff);
                     thread->state = DONE;
                 }
                 else if (read_ret == -1)
                 {
                     perror("read");
+                    free(tx_buff);
                     close(thread->fd);
                     thread->thread_completed = true;
                     return NULL;
@@ -339,17 +356,20 @@ static void* thread_ReceiveSend(void* arg)
                 else
                 {
                     /*Send buffer*/
-                    DEBUG_MSG("TX: ", tx_buff);
+                    // DEBUG_MSG("TX: ", tx_buff);
                     for(int i = 0; i < read_ret ; i++)
                     {
                         if((send(thread->acceptfd, &tx_buff[i], sizeof(tx_buff[0]) , 0)) == -1)
                         {
                             perror("Send");
+                            free(tx_buff);
                             close(thread->acceptfd);
                             thread->thread_completed = true;
                             return NULL;
                         }
                     }
+                    free(tx_buff);
+                    tx_buff = NULL;
                     thread->state = DONE;
                     /*Connection Closed*/
                     (void)pthread_mutex_lock(&thread_mutex);
@@ -363,6 +383,11 @@ static void* thread_ReceiveSend(void* arg)
             case DONE:
                 thread->thread_completed = true;
                 free(packet);
+                close(thread->fd);
+                close(thread->acceptfd);
+                if (tx_buff != NULL) {
+                    free(tx_buff);
+                }
                 return NULL;
         }
     }
