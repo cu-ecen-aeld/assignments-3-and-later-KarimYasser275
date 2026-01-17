@@ -13,16 +13,39 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <sys/stat.h>
-
+#include <pthread.h>
 typedef enum server_state
 {
     SOCKET_CREATE = 0,
     SOCKET_BIND = 1,
     LISTEN = 2,
     ACCEPT = 3,
-    RECEIVE = 4,
-    SEND = 5,
+    CHECK = 4
 } server_state_t;
+
+typedef enum substate_e
+{
+    RECEIVE,
+    SEND,
+    DONE
+}substate_t;
+
+typedef struct Node_s
+{
+    pthread_t t;
+    int fd;
+    int acceptfd;
+    bool thread_completed;
+    substate_t state;
+    struct Node_s *next;
+}Node_t;
+
+Node_t* head = NULL;
+pthread_mutex_t thread_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t ll_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_t time_stamp;
+static void* thread_ReceiveSend(void* arg);
+static void* thread_timeStamp(void* arg);
 
 #define AESD_PORT "9000"
 #define DEBUG_MSG(X, Y)    printf("[DEBUG] %s %s \n", X, Y)
@@ -31,11 +54,11 @@ typedef enum server_state
 bool deamon_flag = false;
 char rx_buff[1024];
 struct addrinfo *address;
-char *packet, *tx_buff = NULL;
-uint16_t len = 0u;
+char *tx_buff = NULL;
+// uint16_t len = 0u;
 int socketfd ,fd , acceptfd;
 static server_state_t g_state = SOCKET_CREATE;
-
+char ipstr[INET6_ADDRSTRLEN];
 static void gracefull_exit(int signo);
 
 int main(int argc, char *argv[])
@@ -48,7 +71,6 @@ int main(int argc, char *argv[])
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
-    char ipstr[INET6_ADDRSTRLEN];
 
 
     openlog("aesdsocket", LOG_PID | LOG_CONS, LOG_USER);
@@ -77,6 +99,7 @@ int main(int argc, char *argv[])
             return -1;
         }
     }
+    pthread_create(&time_stamp , NULL, thread_timeStamp, NULL);
 
     while(1)
     {
@@ -160,98 +183,50 @@ int main(int argc, char *argv[])
                 }
 
                 fd = open("/var/tmp/aesdsocketdata",O_RDWR | O_CREAT | O_APPEND, 0644);
-                packet = NULL;
-                len = 0u;
-
-                g_state = RECEIVE;
-                break;
-
-            case RECEIVE:
-
-                int rx_ret = recv(acceptfd, rx_buff, sizeof(rx_buff), 0);
-
-                if(rx_ret == -1)
-                {
-                    /*Rx error*/
-                    perror("Rx");
-                    return 0;
-                }
-                else if (rx_ret == 0)
-                {
-                    break;
-                }
-                else
-                {
-                    /*Rx == number of bytes received*/
-                    packet = realloc(packet, len + rx_ret);
-                    (void*)memcpy(&packet[len], rx_buff, rx_ret);
-                    len += rx_ret;
-                    
-                    /*Send buffer*/
-                    if (memchr(packet, '\n', len) != NULL)
-                    {
-                        /*New line reached*/
-                        /*Append received msg to /var/tmp/aesdsocketdata*/
-                        int wr_ret = write(fd , packet, len);
-                        if(wr_ret == -1)
-                        {
-                            return -1;
-                        }
-                        g_state = SEND;
-                    }
-                }
-                /*free dynamically allocated packet*/
-                // free(packet);
-                // len = 0;
                 // packet = NULL;
+                // len = 0u;
+
+                //create a thread for the new accepted connection
+                Node_t* new_node = malloc(sizeof(Node_t));
+                new_node->next = head;
+                new_node->thread_completed = false;
+                head = new_node;
+                head->t;
+                head->acceptfd = acceptfd;
+                head->fd = fd;
+                head->state = RECEIVE;
+                pthread_create(&head->t , NULL, thread_ReceiveSend, head);
+                g_state = CHECK;
                 break;
-            
-            case SEND:
-                /*Send Messge*/
-                /*Read file into a new buffer*/
-                struct stat st;
-                if (fstat(fd, &st) == -1) {
-                    perror("fstat");
-                    close(fd);
-                    return -1;
-                }
 
-                size_t size = st.st_size;
-                tx_buff = malloc(size);
-                fd = open("/var/tmp/aesdsocketdata",O_RDWR | O_CREAT | O_APPEND, 0644);
-                int read_ret = read(fd , tx_buff , size);
-
-                if(read_ret == 0)
+            case CHECK:
+                if(!head) break;
+                pthread_mutex_lock(&ll_mutex);
+                Node_t *it = head->next, *prev = head;
+                
+                if(prev->thread_completed == true)
                 {
-                    /*end of file reached*/
-                    DEBUG_MSG("End of file reached","");
-                    g_state = ACCEPT;
+                    pthread_join(prev->t , NULL);
+                    head=prev->next;
+                    free(prev);
                     break;
                 }
-                else if (read_ret == -1)
+                while(it != NULL)
                 {
-                    perror("read");
-                    close(fd);
-                    return -1;
-                }
-                else
-                {
-                    /*Send buffer*/
-                    DEBUG_MSG("TX: ", tx_buff);
-                    for(int i = 0; i < read_ret ; i++)
+                    if(it->thread_completed == true)
                     {
-                        if((send(acceptfd, &tx_buff[i], sizeof(tx_buff[0]) , 0)) == -1)
-                        {
-                            perror("Send");
-                            close(acceptfd);
-                            return -1;
-                        }
+                        //join thread
+                        pthread_join(it->t , NULL);
+                        //remove from linked list
+                        prev->next = it->next;
+                        free(it);
                     }
-                    g_state = ACCEPT;
-                    /*Connection Closed*/
-                    syslog(LOG_INFO, "Closed connection from %s", ipstr);
-                    free(tx_buff);
+                    prev = prev->next;
+                    if(prev == NULL) break;
+                    it = prev->next;//seg fault 7aseeeeeb!!!!!!
                 }
+                g_state = LISTEN;
+                pthread_mutex_unlock(&ll_mutex);
                 break;
 
             default:
@@ -270,11 +245,149 @@ static void gracefull_exit(int signo)
     close(socketfd);
     close(fd);
     close(acceptfd);
-    free(packet);
+    // free(packet);
     freeaddrinfo(address);
     printf("\ngracefull exit in progress, signo: %d\n", signo);
     syslog(LOG_INFO, "Caught signal, exiting");
     unlink("/var/tmp/aesdsocketdata");
     closelog();
     exit(EXIT_SUCCESS);
+}
+
+static void* thread_ReceiveSend(void* arg)
+{
+    Node_t* thread = (Node_t*) arg;
+    char *packet = NULL;
+    uint16_t len = 0u;
+
+    while(1)
+    {
+        switch(thread->state)
+        {
+            case RECEIVE:
+                
+                int rx_ret = recv(thread->acceptfd, rx_buff, sizeof(rx_buff), 0);
+
+                if(rx_ret == -1)
+                {
+                    /*Rx error*/
+                    perror("Rx");
+                    return 0;
+                }
+                else if (rx_ret == 0)
+                {
+                    // break;
+                }
+                else
+                {
+                    /*Rx == number of bytes received*/
+                    packet = realloc(packet, len + rx_ret);
+                    (void*)memcpy(&packet[len], rx_buff, rx_ret);
+                    len += rx_ret;
+                    
+                    /*Send buffer*/
+                    if (memchr(packet, '\n', len) != NULL)
+                    {
+                        /*New line reached*/
+                        /*Append received msg to /var/tmp/aesdsocketdata*/
+                        (void)pthread_mutex_lock(&thread_mutex);
+                        int wr_ret = write(thread->fd , packet, len);
+                        (void)pthread_mutex_unlock(&thread_mutex);
+                        if(wr_ret == -1)
+                        {
+                            thread->thread_completed = true;
+                            return NULL;
+                        }
+                        thread->state = SEND;
+                    }
+                }
+                break;
+            /*free dynamically allocated packet*/
+            // free(packet);
+            // len = 0;
+            // packet = NULL;
+            case SEND:
+
+                /*Send Messge*/
+                /*Read file into a new buffer*/
+                struct stat st;
+                if (fstat(thread->fd, &st) == -1) {
+                    perror("fstat");
+                    close(thread->fd);
+                    thread->thread_completed = true;
+                    return NULL;
+                }
+
+                size_t size = st.st_size;
+                tx_buff = malloc(size);
+                thread->fd = open("/var/tmp/aesdsocketdata",O_RDWR | O_CREAT | O_APPEND, 0644);
+                int read_ret = read(thread->fd , tx_buff , size);
+
+                if(read_ret == 0)
+                {
+                    /*end of file reached*/
+                    DEBUG_MSG("End of file reached","");
+                    thread->state = DONE;
+                }
+                else if (read_ret == -1)
+                {
+                    perror("read");
+                    close(thread->fd);
+                    thread->thread_completed = true;
+                    return NULL;
+                }
+                else
+                {
+                    /*Send buffer*/
+                    DEBUG_MSG("TX: ", tx_buff);
+                    for(int i = 0; i < read_ret ; i++)
+                    {
+                        if((send(thread->acceptfd, &tx_buff[i], sizeof(tx_buff[0]) , 0)) == -1)
+                        {
+                            perror("Send");
+                            close(thread->acceptfd);
+                            thread->thread_completed = true;
+                            return NULL;
+                        }
+                    }
+                    thread->state = DONE;
+                    /*Connection Closed*/
+                    (void)pthread_mutex_lock(&thread_mutex);
+                    syslog(LOG_INFO, "Closed connection from %s", ipstr);
+                    (void)pthread_mutex_unlock(&thread_mutex);
+
+                    // free(tx_buff);
+                }
+                break;
+
+            case DONE:
+                thread->thread_completed = true;
+                free(packet);
+                return NULL;
+        }
+    }
+    
+}
+
+static void* thread_timeStamp(void* arg)
+{
+    while (1)
+    {
+        time_t now = time(NULL);
+        struct tm *tm_info = localtime(&now);
+        char buffer[128];
+
+        // Format RFC 2822 style
+        strftime(buffer, sizeof(buffer), "timestamp:%a, %d %b %Y %H:%M:%S %z\n", tm_info);
+
+        pthread_mutex_lock(&thread_mutex);  // lock shared file
+        int fd = open("/var/tmp/aesdsocketdata", O_WRONLY | O_APPEND | O_CREAT, 0644);
+        if(fd != -1) {
+            write(fd, buffer, strlen(buffer));
+            close(fd);
+        }
+        pthread_mutex_unlock(&thread_mutex); // unlock
+
+        sleep(10);  // wait 10 seconds
+    }
 }
