@@ -1,7 +1,7 @@
-CC ?= gcc
-CFLAGS ?= -g -Wall
-LDFLAGS ?= -lpthread -lrt
-TARGET ?= aesdsocket
+TARGET = aesdsocket
+
+CFLAGS += -Wall
+LDFLAGS += -lpthread -lrt
 
 all: $(TARGET)
 
