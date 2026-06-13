@@ -33,7 +33,7 @@ Assignment 8 requires implementing a **Linux kernel character device driver** (`
  User Space                            Kernel Space
  ─────────                             ────────────
  ┌──────────────┐                      ┌──────────────────────────────┐
- │  aesdsocket  │   open/read/write    │     aesd char driver        │
+ │  aesdsocket  │   open/read/write    │     aesd char driver         │
  │  (modified)  │─────────────────────►│                              │
  │              │                      │  ┌────────────────────────┐  │
  │ Writes to    │                      │  │   aesd_dev structure   │  │

@@ -32,9 +32,9 @@
  * described by char_offset, or NULL if this position is not available in the
  * buffer (not enough data is written).
  */
-struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(
-    struct aesd_circular_buffer *buffer, size_t char_offset,
-    size_t *entry_offset_byte_rtn)
+struct aesd_buffer_entry *
+aesd_circular_buffer_find_entry_offset_for_fpos(struct aesd_circular_buffer *buffer,
+                                                size_t char_offset, size_t *entry_offset_byte_rtn)
 {
     uint8_t index = buffer->out_offs, buffer_size = 0;
 
@@ -54,9 +54,9 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(
     else
     {
         /*Buffer is not full*/
-        buffer_size = (buffer->in_offs - buffer->out_offs +
-                       AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED) %
-                      AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+        buffer_size =
+            (buffer->in_offs - buffer->out_offs + AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED) %
+            AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     }
 
     bool found = false;
@@ -91,24 +91,27 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(
  * @param add_entry must be allocated by and/or must have a lifetime managed
  * by the caller.
  */
-void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer,
-                                    const struct aesd_buffer_entry *add_entry)
+const char *aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer,
+                                           const struct aesd_buffer_entry *add_entry)
 {
     /**
      * TODO: implement per description
      */
+    const char *evicted_ptr = NULL;
 
     if(buffer->full)
     {
-        buffer->out_offs =
-            ((buffer->out_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED);
+        /* Save pointer to the entry that will be overwritten so caller can free it */
+        evicted_ptr = buffer->entry[buffer->in_offs].buffptr;
+        buffer->out_offs = ((buffer->out_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED);
     }
     buffer->entry[buffer->in_offs] = *add_entry;
     /* Advance in_offs, wrapping around */
-    buffer->in_offs =
-        (buffer->in_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+    buffer->in_offs = (buffer->in_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     /* Mark full when write catches up with read */
     buffer->full = (buffer->in_offs == buffer->out_offs);
+
+    return evicted_ptr;
 }
 
 /**
