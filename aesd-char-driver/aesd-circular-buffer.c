@@ -8,11 +8,11 @@
  *
  */
 
-#include <stdint.h>
-#include <stdio.h>
 #ifdef __KERNEL__
 #include <linux/string.h>
 #else
+#include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #endif
 
