@@ -21,6 +21,7 @@ KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 PWD       := $(shell pwd)
 
 modules:
+	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
 
 endif
