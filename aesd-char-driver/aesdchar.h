@@ -32,8 +32,9 @@ struct aesd_dev {
    */
   struct mutex mutex_lock;
   struct aesd_circular_buffer cir_buff;
-  struct aesd_buffer_entry temp_buff;
-  struct cdev cdev; /* Char device structure      */
+  char *working_buff;       /* Non-const buffer for accumulating partial writes */
+  size_t working_buff_size; /* Current size of working_buff */
+  struct cdev cdev;         /* Char device structure      */
 };
 
 #endif /* AESD_CHAR_DRIVER_AESDCHAR_H_ */

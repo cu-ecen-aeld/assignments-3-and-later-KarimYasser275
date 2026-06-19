@@ -91,13 +91,13 @@ aesd_circular_buffer_find_entry_offset_for_fpos(struct aesd_circular_buffer *buf
  * @param add_entry must be allocated by and/or must have a lifetime managed
  * by the caller.
  */
-char *aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer,
-                                     const struct aesd_buffer_entry *add_entry)
+const char *aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer,
+                                           const struct aesd_buffer_entry *add_entry)
 {
     /**
      * TODO: implement per description
      */
-    char *evicted_ptr = NULL;
+    const char *evicted_ptr = NULL;
 
     if(buffer->full)
     {

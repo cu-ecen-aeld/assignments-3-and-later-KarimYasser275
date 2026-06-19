@@ -121,43 +121,48 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count, loff_t *f_p
 
 ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
-
-    PDEBUG("write %zu bytes with offset %lld", count, *f_pos);
     struct aesd_dev *aesd_dev_ptr = filp->private_data;
     char *new_ptr = NULL;
-    char *replaced_entry = NULL;
+    const char *replaced_entry = NULL;
+
+    PDEBUG("write %zu bytes with offset %lld", count, *f_pos);
+
     if(mutex_lock_interruptible(&aesd_dev_ptr->mutex_lock))
         return -ERESTARTSYS;
+
     new_ptr =
-        krealloc(aesd_dev_ptr->temp_buff.buffptr, aesd_dev_ptr->temp_buff.size + count, GFP_KERNEL);
+        krealloc(aesd_dev_ptr->working_buff, aesd_dev_ptr->working_buff_size + count, GFP_KERNEL);
     if(NULL == new_ptr)
     {
         mutex_unlock(&aesd_dev_ptr->mutex_lock);
         return -ENOMEM;
     }
 
-    aesd_dev_ptr->temp_buff.buffptr = new_ptr;
+    aesd_dev_ptr->working_buff = new_ptr;
 
     if(0 !=
-       copy_from_user(&aesd_dev_ptr->temp_buff.buffptr[aesd_dev_ptr->temp_buff.size], buf, count))
+       copy_from_user(&aesd_dev_ptr->working_buff[aesd_dev_ptr->working_buff_size], buf, count))
     {
         mutex_unlock(&aesd_dev_ptr->mutex_lock);
         return -EFAULT;
     }
 
-    aesd_dev_ptr->temp_buff.size += count;
+    aesd_dev_ptr->working_buff_size += count;
 
     if(NULL !=
-       memchr(&aesd_dev_ptr->temp_buff.buffptr[aesd_dev_ptr->temp_buff.size - count], '\n', count))
+       memchr(&aesd_dev_ptr->working_buff[aesd_dev_ptr->working_buff_size - count], '\n', count))
     {
-        replaced_entry =
-            aesd_circular_buffer_add_entry(&aesd_dev_ptr->cir_buff, &aesd_dev_ptr->temp_buff);
+        struct aesd_buffer_entry new_entry;
+        new_entry.buffptr = aesd_dev_ptr->working_buff;
+        new_entry.size = aesd_dev_ptr->working_buff_size;
+
+        replaced_entry = aesd_circular_buffer_add_entry(&aesd_dev_ptr->cir_buff, &new_entry);
         if(replaced_entry != NULL)
         {
             kfree(replaced_entry);
         }
-        aesd_dev_ptr->temp_buff.buffptr = NULL;
-        aesd_dev_ptr->temp_buff.size = 0;
+        aesd_dev_ptr->working_buff = NULL;
+        aesd_dev_ptr->working_buff_size = 0;
     }
     mutex_unlock(&aesd_dev_ptr->mutex_lock);
     return count;
@@ -222,9 +227,9 @@ void aesd_cleanup_module(void)
     /**
      * TODO: cleanup AESD specific poritions here as necessary
      */
-    if(aesd_device.temp_buff.buffptr)
+    if(aesd_device.working_buff)
     {
-        kfree(aesd_device.temp_buff.buffptr);
+        kfree(aesd_device.working_buff);
     }
 
     uint8_t index;
