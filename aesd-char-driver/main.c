@@ -164,6 +164,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count, loff
 }
 struct file_operations aesd_fops = {
     .owner = THIS_MODULE,
+    .llseek = no_llseek,
     .read = aesd_read,
     .write = aesd_write,
     .open = aesd_open,
