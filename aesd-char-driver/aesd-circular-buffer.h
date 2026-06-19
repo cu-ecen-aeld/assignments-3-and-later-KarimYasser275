@@ -8,6 +8,8 @@
 #ifndef AESD_CIRCULAR_BUFFER_H
 #define AESD_CIRCULAR_BUFFER_H
 
+#define __KERNEL__
+
 #ifdef __KERNEL__
 #include <linux/types.h>
 #else
