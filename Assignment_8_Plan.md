@@ -1,4 +1,5 @@
 # Assignment 8 — AESD Character Driver
+# Karim Yasser
 
 ## 1. Assignment Overview
 
