@@ -314,17 +314,17 @@ static void *thread_ReceiveSend(void *arg)
 #ifdef USE_AESD_CHAR_DEVICE
 
                     struct aesd_seekto seekto;
-                    if(sscanf(packet, "AESDCHAR_IOCSEEKTO: %d , %d", &seekto.write_cmd,
+                    if(sscanf(packet, "AESDCHAR_IOCSEEKTO:%d,%d", &seekto.write_cmd,
                               &seekto.write_cmd_offset) == 2)
                     {
-                        if(ioctl(thread->fd, AESDCHAR_IOCSEEKTO, &seekto) == -1)
+                        if(ioctl(thread->fd, AESDCHAR_IOCSEEKTO, &seekto) != 0)
                             perror("ioctl");
                         thread->state = SEND;
                         break; // early break to skip writing to char device
                     }
 
 #endif
-                    /*Send buffer*/
+                    /*write buffer to aesdchar*/
                     if(memchr(packet, '\n', len) != NULL)
                     {
                         /*New line reached*/
