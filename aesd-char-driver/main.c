@@ -11,6 +11,7 @@
  *
  */
 
+#include "aesd_ioctl.h"
 #include "aesdchar.h"
 #include <linux/cdev.h>
 #include <linux/fs.h> // file_operations

@@ -1,4 +1,4 @@
-#include "aesd-char-driver/aesd_ioctl.h"
+#include "../aesd-char-driver/aesd_ioctl.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -41,6 +41,8 @@ typedef struct Node_s
     struct Node_s *next;
 } Node_t;
 
+#define USE_AESD_CHAR_DEVICE 1
+
 Node_t *head = NULL;
 pthread_mutex_t thread_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t ll_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -55,8 +57,6 @@ static void *thread_timeStamp(void *arg);
 #ifndef FSTAT_ENABLED
 #define TX_BUFFER_FIXED_SIZE 1024
 #endif
-
-#define USE_AESD_CHAR_DEVICE 1
 
 #ifdef USE_AESD_CHAR_DEVICE
 #define DATA_FILE "/dev/aesdchar"
