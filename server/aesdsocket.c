@@ -311,31 +311,31 @@ static void *thread_ReceiveSend(void *arg)
                     (void *)memcpy(&packet[len], rx_buff, rx_ret);
                     len += rx_ret;
 
-#ifdef USE_AESD_CHAR_DEVICE
-
-                    struct aesd_seekto seekto;
-                    if(sscanf(packet, "AESDCHAR_IOCSEEKTO:%d,%d", &seekto.write_cmd,
-                              &seekto.write_cmd_offset) == 2)
-                    {
-                        printf("[DEBUG]: X: %d, Y: %d \n", seekto.write_cmd,
-                               seekto.write_cmd_offset);
-
-                        if(ioctl(thread->fd, AESDCHAR_IOCSEEKTO, &seekto) != 0)
-                            // perror("ioctl");
-                            printf("[DEBUG]: IOCTL error\n");
-                        thread->state = SEND;
-                        break; // early break to skip writing to char device
-                    }
-                    else
-                    {
-                        printf("[DEBUG]: SCANF error\n");
-                        break;
-                    }
-
-#endif
                     /*write buffer to aesdchar*/
                     if(memchr(packet, '\n', len) != NULL)
                     {
+#ifdef USE_AESD_CHAR_DEVICE
+
+                        struct aesd_seekto seekto;
+                        if(sscanf(packet, "AESDCHAR_IOCSEEKTO:%d,%d", &seekto.write_cmd,
+                                  &seekto.write_cmd_offset) == 2)
+                        {
+                            printf("[DEBUG]: X: %d, Y: %d \n", seekto.write_cmd,
+                                   seekto.write_cmd_offset);
+
+                            if(ioctl(thread->fd, AESDCHAR_IOCSEEKTO, &seekto) != 0)
+                                // perror("ioctl");
+                                printf("[DEBUG]: IOCTL error\n");
+                            thread->state = SEND;
+                            break; // early break to skip writing to char device
+                        }
+                        else
+                        {
+                            printf("[DEBUG]: SCANF error\n");
+                            break;
+                        }
+
+#endif
                         /*New line reached*/
                         /*Append received msg to /var/tmp/aesdsocketdata*/
                         (void)pthread_mutex_lock(&thread_mutex);
