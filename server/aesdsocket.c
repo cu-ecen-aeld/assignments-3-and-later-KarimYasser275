@@ -324,15 +324,9 @@ static void *thread_ReceiveSend(void *arg)
                                    seekto.write_cmd_offset);
 
                             if(ioctl(thread->fd, AESDCHAR_IOCSEEKTO, &seekto) != 0)
-                                // perror("ioctl");
-                                printf("[DEBUG]: IOCTL error\n");
+                                perror("ioctl");
                             thread->state = SEND;
                             break; // early break to skip writing to char device
-                        }
-                        else
-                        {
-                            printf("[DEBUG]: SCANF error\n");
-                            break;
                         }
 
 #endif
