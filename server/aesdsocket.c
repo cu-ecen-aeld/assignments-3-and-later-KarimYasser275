@@ -1,3 +1,4 @@
+#include "aesd-char-driver/aesd_ioctl.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -310,6 +311,19 @@ static void *thread_ReceiveSend(void *arg)
                     (void *)memcpy(&packet[len], rx_buff, rx_ret);
                     len += rx_ret;
 
+#ifdef USE_AESD_CHAR_DEVICE
+
+                    struct aesd_seekto seekto;
+                    if(sscanf(packet, "AESDCHAR_IOCSEEKTO: %d , %d", &seekto.write_cmd,
+                              &seekto.write_cmd_offset) == 2)
+                    {
+                        if(ioctl(thread->fd, AESDCHAR_IOCSEEKTO, &seekto) == -1)
+                            perror("ioctl");
+                        thread->state = SEND;
+                        break; // early break to skip writing to char device
+                    }
+
+#endif
                     /*Send buffer*/
                     if(memchr(packet, '\n', len) != NULL)
                     {
@@ -405,9 +419,11 @@ static void *thread_ReceiveSend(void *arg)
                 size_t total_bytes_read = 0; /* actual data in buffer */
                 int tx_buff_offset = 0;
 
-                /* Close the old write-mode fd before re-opening for reading */
+/* Close the old write-mode fd before re-opening for reading */
+#ifndef USE_AESD_CHAR_DEVICE
                 close(thread->fd);
                 thread->fd = open(DATA_FILE, O_RDONLY);
+#endif
                 if(thread->fd == -1)
                 {
                     perror("open for read");
